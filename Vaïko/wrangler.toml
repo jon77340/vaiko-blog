@@ -1,0 +1,9 @@
+name = "vaiko-blog"
+compatibility_date = "2026-05-01"
+
+[assets]
+directory = "./"
+
+[[r2_buckets]]
+binding = "MEDIA"
+bucket_name = "vaiko"
