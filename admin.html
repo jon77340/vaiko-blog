@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Vaïko Admin</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: system-ui, sans-serif; background: #f5f0e8; color: #2c2c2c; min-height: 100vh; }
+    header { background: #2c2c2c; color: #f5f0e8; padding: 1rem 1.5rem; display: flex; align-items: center; gap: 1rem; }
+    header h1 { font-size: 1.1rem; }
+    header a { color: #c4876a; font-size: .85rem; margin-left: auto; text-decoration: none; }
+    .container { max-width: 700px; margin: 2rem auto; padding: 0 1rem; }
+
+    /* Login */
+    #login { background: white; border-radius: 12px; padding: 2rem; text-align: center; box-shadow: 0 2px 8px rgba(0,0,0,.08); }
+    #login h2 { margin-bottom: 1rem; font-size: 1.2rem; }
+    #login input { width: 100%; padding: .75rem 1rem; border: 1px solid #ddd; border-radius: 8px; font-size: 1rem; margin-bottom: .75rem; }
+    #login button { width: 100%; padding: .75rem; background: #c4876a; color: white; border: none; border-radius: 8px; font-size: 1rem; cursor: pointer; }
+    #login .error { color: #c0392b; font-size: .85rem; margin-top: .5rem; display: none; }
+
+    /* Posts */
+    #posts { display: none; }
+    .toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; }
+    .toolbar h2 { font-size: 1.1rem; }
+    .btn-sync { background: #c4876a; color: white; border: none; border-radius: 8px; padding: .5rem 1rem; cursor: pointer; font-size: .9rem; }
+    .btn-sync:disabled { opacity: .5; }
+    .post-card { background: white; border-radius: 10px; padding: 1rem; margin-bottom: 1rem; box-shadow: 0 1px 4px rgba(0,0,0,.06); display: flex; gap: 1rem; align-items: flex-start; }
+    .post-thumb { width: 80px; height: 80px; object-fit: cover; border-radius: 8px; flex-shrink: 0; background: #eee; }
+    .post-thumb.no-img { display: flex; align-items: center; justify-content: center; font-size: 2rem; }
+    .post-info { flex: 1; min-width: 0; }
+    .post-date { font-size: .75rem; color: #888; }
+    .post-title { font-size: .95rem; font-weight: 600; margin: .2rem 0 .3rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .post-body-preview { font-size: .8rem; color: #666; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .post-actions { display: flex; gap: .5rem; margin-top: .6rem; }
+    .btn-edit { background: #f0f0f0; border: none; border-radius: 6px; padding: .35rem .75rem; font-size: .8rem; cursor: pointer; }
+    .btn-delete { background: #fde8e8; color: #c0392b; border: none; border-radius: 6px; padding: .35rem .75rem; font-size: .8rem; cursor: pointer; }
+    .empty { text-align: center; color: #888; font-style: italic; padding: 2rem; }
+
+    /* Modal */
+    .modal-bg { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.4); z-index: 100; align-items: center; justify-content: center; }
+    .modal-bg.open { display: flex; }
+    .modal { background: white; border-radius: 12px; padding: 1.5rem; width: min(90vw, 480px); }
+    .modal h3 { margin-bottom: 1rem; }
+    .modal label { display: block; font-size: .85rem; color: #555; margin-bottom: .25rem; }
+    .modal input, .modal textarea { width: 100%; padding: .6rem; border: 1px solid #ddd; border-radius: 6px; font-size: .9rem; margin-bottom: .75rem; font-family: inherit; }
+    .modal textarea { height: 100px; resize: vertical; }
+    .modal-actions { display: flex; gap: .5rem; justify-content: flex-end; }
+    .btn-cancel { background: #f0f0f0; border: none; border-radius: 8px; padding: .5rem 1rem; cursor: pointer; }
+    .btn-save { background: #c4876a; color: white; border: none; border-radius: 8px; padding: .5rem 1rem; cursor: pointer; }
+    .toast { position: fixed; bottom: 1.5rem; right: 1.5rem; background: #2c2c2c; color: white; padding: .75rem 1.25rem; border-radius: 8px; font-size: .9rem; opacity: 0; transition: opacity .3s; pointer-events: none; z-index: 200; }
+    .toast.show { opacity: 1; }
+  </style>
+</head>
+<body>
+<header>
+  <h1>🐾 Vaïko Admin</h1>
+  <a href="/" id="site-link">← Voir le site</a>
+</header>
+<div class="container">
+
+  <!-- Login -->
+  <div id="login">
+    <h2>Connexion</h2>
+    <input type="password" id="token-input" placeholder="Token admin" autocomplete="off">
+    <button onclick="login()">Connexion</button>
+    <p class="error" id="login-error">Token incorrect</p>
+  </div>
+
+  <!-- Posts -->
+  <div id="posts">
+    <div class="toolbar">
+      <h2 id="posts-count">Posts</h2>
+      <button class="btn-sync" id="sync-btn" onclick="forceSync()">⟳ Sync Telegram</button>
+    </div>
+    <div id="posts-list"></div>
+  </div>
+
+</div>
+
+<!-- Modal édition -->
+<div class="modal-bg" id="modal">
+  <div class="modal">
+    <h3>Modifier le post</h3>
+    <label>Titre</label>
+    <input type="text" id="edit-title">
+    <label>Texte</label>
+    <textarea id="edit-body"></textarea>
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="closeModal()">Annuler</button>
+      <button class="btn-save" onclick="saveEdit()">Enregistrer</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const WORKER = 'https://vaiko-sync.jonathan-34c.workers.dev';
+let TOKEN = '';
+let editingId = null;
+let allPosts = [];
+
+function login() {
+  TOKEN = document.getElementById('token-input').value.trim();
+  loadPosts();
+}
+
+document.getElementById('token-input').addEventListener('keydown', e => {
+  if (e.key === 'Enter') login();
+});
+
+async function api(action, extra = {}) {
+  const res = await fetch(WORKER + '/admin', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ token: TOKEN, action, ...extra })
+  });
+  return res.json();
+}
+
+async function loadPosts() {
+  const data = await api('list');
+  if (data.error) {
+    document.getElementById('login-error').style.display = 'block';
+    return;
+  }
+  document.getElementById('login').style.display = 'none';
+  document.getElementById('posts').style.display = 'block';
+  allPosts = (data.posts || []).sort((a, b) => b.date.localeCompare(a.date));
+  renderPosts();
+}
+
+function renderPosts() {
+  const list = document.getElementById('posts-list');
+  document.getElementById('posts-count').textContent = `${allPosts.length} post${allPosts.length > 1 ? 's' : ''}`;
+  if (!allPosts.length) {
+    list.innerHTML = '<p class="empty">Aucun post pour l\'instant.</p>';
+    return;
+  }
+  list.innerHTML = allPosts.map(p => {
+    const thumb = p.image
+      ? `<img class="post-thumb" src="${p.image}" onerror="this.style.display='none'">`
+      : `<div class="post-thumb no-img">🐾</div>`;
+    const coords = p.coords ? ` 📍` : '';
+    return `
+      <div class="post-card">
+        ${thumb}
+        <div class="post-info">
+          <div class="post-date">${p.date}${coords}</div>
+          <div class="post-title">${esc(p.title)}</div>
+          <div class="post-body-preview">${esc(p.body) || '<em>Sans texte</em>'}</div>
+          <div class="post-actions">
+            <button class="btn-edit" onclick="openEdit(${p.message_id})">✏️ Modifier</button>
+            <button class="btn-delete" onclick="deletePost(${p.message_id})">🗑 Supprimer</button>
+          </div>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+async function deletePost(id) {
+  if (!confirm('Supprimer ce post ?')) return;
+  await api('delete', { message_id: id });
+  allPosts = allPosts.filter(p => p.message_id !== id);
+  renderPosts();
+  showToast('Post supprimé');
+}
+
+function openEdit(id) {
+  const post = allPosts.find(p => p.message_id === id);
+  if (!post) return;
+  editingId = id;
+  document.getElementById('edit-title').value = post.title;
+  document.getElementById('edit-body').value = post.body;
+  document.getElementById('modal').classList.add('open');
+}
+
+function closeModal() {
+  document.getElementById('modal').classList.remove('open');
+  editingId = null;
+}
+
+async function saveEdit() {
+  const title = document.getElementById('edit-title').value.trim();
+  const body = document.getElementById('edit-body').value.trim();
+  await api('update', { message_id: editingId, title, body });
+  const post = allPosts.find(p => p.message_id === editingId);
+  if (post) { post.title = title; post.body = body; }
+  closeModal();
+  renderPosts();
+  showToast('Post mis à jour');
+}
+
+async function forceSync() {
+  const btn = document.getElementById('sync-btn');
+  btn.disabled = true;
+  btn.textContent = '⟳ Sync en cours…';
+  const res = await fetch(`${WORKER}/sync?token=${TOKEN}`);
+  const data = await res.json();
+  btn.disabled = false;
+  btn.textContent = '⟳ Sync Telegram';
+  await loadPosts();
+  showToast(`Sync OK — ${data.processed || 0} nouveau(x) message(s)`);
+}
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 3000);
+}
+
+function esc(s) {
+  return String(s ?? '').replace(/[&<>"']/g, c =>
+    ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
+}
+</script>
+</body>
+</html>
