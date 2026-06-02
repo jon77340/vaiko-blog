@@ -178,13 +178,29 @@ async function processMessage(msg, state, env) {
   const mediaPath = await downloadMedia(msg, env);
   const hasText = title.length > 0 || body.length > 0;
 
-  if (hasText || mediaPath) {
+  // Message de localisation pure → met à jour le dernier post sans coords
+  if (msg.location && !mediaPath && !hasText) {
+    const last = state.posts[state.posts.length - 1];
+    if (last && !last.coords) {
+      last.coords = { lat: msg.location.latitude, lng: msg.location.longitude };
+    } else {
+      state.posts.push({
+        date, dateLabel: '', title: 'Position', body: '',
+        image: '', tag: '', coords: { lat: msg.location.latitude, lng: msg.location.longitude },
+        message_id: msg.message_id
+      });
+    }
+    return;
+  }
+
+  if (hasText || mediaPath || msg.location) {
+    const coords = msg.location ? { lat: msg.location.latitude, lng: msg.location.longitude } : (extractCoords(caption) || null);
     state.posts.push({
       date, dateLabel: '',
       title: title || 'Sans titre',
       body, image: mediaPath || '',
       tag: extractTag(caption),
-      coords: coords || null,
+      coords: coords,
       message_id: msg.message_id
     });
   }
