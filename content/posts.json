@@ -1,0 +1,22 @@
+[
+  {
+    "date": "2026-06-01",
+    "dateLabel": "Lundi 1er juin 2026",
+    "title": "Jour 1 — L'arrivée",
+    "body": "Première nuit ici. La maison sent bizarre mais Djanko a partagé son panier. Il est cool. On a fait connaissance autour d'une gamelle de croquettes. J'ai un peu pleuré au début mais je me suis vite repris.",
+    "tag": "premiers pas",
+    "image": "",
+    "emoji": "🎾",
+    "color": "#f4a261,#e76f51"
+  },
+  {
+    "date": "2026-06-02",
+    "dateLabel": "Mardi 2 juin 2026",
+    "title": "Jour 2 — Grande balade en forêt",
+    "body": "2 heures de marche avec Djanko ! J'ai senti au moins 47 odeurs différentes. Un écureuil m'a nargué. J'ai roulé dans quelque chose qui sentait fort — humain pas content au retour, bain obligatoire.",
+    "tag": "balade",
+    "image": "",
+    "emoji": "🌲",
+    "color": "#2a9d8f,#264653"
+  }
+]

@@ -1,0 +1,15 @@
+name = "vaiko-sync"
+main = "src/index.js"
+compatibility_date = "2026-05-01"
+
+# Binding R2 : le bucket où on stocke médias + JSON
+[[r2_buckets]]
+binding = "MEDIA"
+bucket_name = "vaiko"
+
+# Cron : synchro toutes les 5 minutes
+[triggers]
+crons = ["*/5 * * * *"]
+
+# Les variables sensibles (BOT_TOKEN, CHANNEL_ID, SYNC_TOKEN) sont définies
+# avec `wrangler secret put` ou via le dashboard Cloudflare.

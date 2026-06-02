@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Vaïko — Carnet de séjour</title>
+<meta name="description" content="Le journal de Vaïko, en garde chez Djanko pendant que ses humains arpentent les fjords.">
+<meta name="theme-color" content="#faf8f4">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,wght@0,400;0,500;0,600;1,400;1,500&family=Inter:wght@400;500;600&family=JetBrains+Mono&display=swap" rel="stylesheet">
+
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<header class="hero">
+  <nav class="nav">
+    <div class="logo">Vaïko · le carnet</div>
+    <ul class="nav-links">
+      <li><a href="#journal">Journal</a></li>
+      <li><a href="#galerie">Galerie</a></li>
+      <li><a href="#balades">Balades</a></li>
+      <li><a href="#contact">Écrire</a></li>
+    </ul>
+  </nav>
+
+  <div class="hero-content">
+    <p class="kicker">Été 2026 · Carnet de séjour</p>
+    <h1>Quinze jours <em>en pension</em>, racontés par l'intéressé.</h1>
+    <p class="lede">Pendant que ses humains parcourent la Norvège, Vaïko, golden de dix-huit mois, partage le quotidien d'une famille d'adoption — et le panier de Djanko, son nouveau colocataire labrador.</p>
+    <div class="hero-meta">
+      <span class="badge">Golden, 18 mois</span>
+      <span class="badge">Séjour de 15 jours</span>
+      <span class="badge">En compagnie de Djanko</span>
+    </div>
+  </div>
+</header>
+
+<main>
+
+  <section id="journal" class="section">
+    <div class="section-header">
+      <h2>Le journal</h2>
+      <p>Jour après jour</p>
+    </div>
+    <div class="journal-grid" id="journal-grid"></div>
+  </section>
+
+  <section id="galerie" class="section section-alt">
+    <div class="section-header">
+      <h2>La galerie</h2>
+      <p>Cliquez pour agrandir</p>
+    </div>
+    <div class="gallery" id="gallery-grid"></div>
+  </section>
+
+  <section id="balades" class="section">
+    <div class="section-header">
+      <h2>Les balades</h2>
+      <p>Où nous sommes allés</p>
+    </div>
+    <div id="map"></div>
+    <div class="walks-list" id="walks-list"></div>
+  </section>
+
+  <section id="contact" class="section section-alt contact">
+    <div class="section-header">
+      <h2>Un mot pour Vaïko</h2>
+      <p>Ses gardiens lui feront la lecture</p>
+    </div>
+    <a class="cta" href="mailto:jonathan@bianchi.biz?subject=Pour Vaïko">Écrire un message</a>
+  </section>
+
+</main>
+
+<footer>
+  <p>Carnet tenu avec soin pendant que Vaïko ronfle à mes pieds.</p>
+  <p class="footer-small">Bonnes vacances en Norvège — profitez des fjords.</p>
+</footer>
+
+<div id="lightbox" class="lightbox">
+  <button class="lightbox-close" aria-label="Fermer">Fermer</button>
+  <div class="lightbox-content"></div>
+  <p class="lightbox-caption"></p>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" defer></script>
+<script src="app.js" defer></script>
+
+<script>
+// Service Worker pour cache offline (utile pour la Norvège, réseau capricieux)
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js').catch(() => {});
+  });
+}
+</script>
+</body>
+</html>
