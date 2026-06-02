@@ -67,13 +67,11 @@ async function renderJournal() {
       mediaContent = mediaHTML(p.image, p.title);
     } else if (p.emoji) {
       mediaContent = `<span class="post-emoji">${escapeHtml(p.emoji)}</span>`;
-    } else {
-      mediaContent = '<div class="post-image-placeholder" style="width:100%;height:100%"></div>';
     }
 
     return `
       <article class="post">
-        <div class="post-image">${mediaContent}</div>
+        ${mediaContent ? `<div class="post-image">${mediaContent}</div>` : ''}
         <div class="post-body">
           <time class="post-date">${escapeHtml(dateLabel)}</time>
           <h3>${escapeHtml(p.title || '')}</h3>
