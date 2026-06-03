@@ -662,3 +662,13 @@ footer p { margin-bottom: 0.4rem; }
   pointer-events: none; z-index: 600; white-space: nowrap;
 }
 .toast-global.show { opacity: 1; }
+
+/* Pastille nouveaux posts sur le bouton notif */
+.notif-btn.has-badge::after {
+  content: '';
+  position: absolute; top: 2px; right: 2px;
+  width: 9px; height: 9px;
+  background: #c4876a; border-radius: 50%;
+  border: 2px solid var(--paper);
+}
+.notif-btn { position: relative; }
