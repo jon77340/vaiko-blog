@@ -381,7 +381,9 @@ async function checkForUpdates() {
     const posts = await loadJSON('content/posts.json');
     if (lastPostCount > 0 && posts.length > lastPostCount) {
       const banner = document.getElementById('new-posts-banner');
-      if (banner) { banner.style.display = 'flex'; }
+      if (banner) banner.style.display = 'flex';
+      const btn = document.getElementById('notif-btn');
+      if (btn) btn.classList.add('has-badge');
     }
     lastPostCount = posts.length;
   } catch(e) {}
@@ -408,6 +410,8 @@ async function initNotifications() {
   if (perm === 'granted') { btn.classList.add('active'); btn.title = 'Notifications activées'; }
   if (perm === 'denied') { btn.style.display = 'none'; return; }
 
+  // Retire la pastille au clic
+  btn.addEventListener('click', () => btn.classList.remove('has-badge'), { capture: true });
   btn.addEventListener('click', async () => {
     const result = await Notification.requestPermission();
     if (result !== 'granted') return;
