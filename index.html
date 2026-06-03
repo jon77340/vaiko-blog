@@ -6,6 +6,14 @@
 <title>Vaïko — Carnet de séjour</title>
 <meta name="description" content="Le journal de Vaïko, en garde chez Django pendant que ses humains arpentent les fjords.">
 <meta name="theme-color" content="#faf8f4">
+  <!-- Open Graph / WhatsApp / iMessage -->
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://vaiko.bianchi.biz">
+  <meta property="og:title" content="Vaïko — Carnet de séjour">
+  <meta property="og:description" content="Pendant que vous sillonnez la Norvège, je tiens mon carnet de bord 🐾">
+  <meta property="og:image" content="https://vaiko.bianchi.biz/images/og-cover.jpg">
+  <meta property="og:locale" content="fr_FR">
+  <meta name="twitter:card" content="summary_large_image">
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -16,6 +24,11 @@
 </head>
 <body>
 
+
+  <div id="new-posts-banner">
+    🐾 Nouveau post de Vaïko !
+    <button onclick="location.reload()">Voir</button>
+  </div>
 <header class="hero">
   <nav class="nav">
     <div class="logo">Vaïko · le carnet</div>
@@ -43,6 +56,7 @@
   <section id="journal" class="section">
     <div class="section-header">
       <h2>Le journal</h2>
+      <span id="last-updated"></span>
       <p>Jour après jour</p>
     </div>
     <div class="journal-grid" id="journal-grid"></div>
