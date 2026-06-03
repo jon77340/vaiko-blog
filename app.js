@@ -395,3 +395,53 @@ renderJournal().then(() => {
 });
 renderGallery();
 renderMap();
+
+// ====== NOTIFICATIONS PUSH ======
+const VAPID_PUBLIC = 'BKizUXt5zyjaiZkQVoRLkIp3jfccZf--5Tw63c8lQREabdJT6EGdxFmKk_6j_DCaqgfoIAwM6JQuPOyy3NU4syM';
+
+async function initNotifications() {
+  if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
+  const btn = document.getElementById('notif-btn');
+  if (!btn) return;
+
+  const perm = Notification.permission;
+  if (perm === 'granted') { btn.classList.add('active'); btn.title = 'Notifications activées'; }
+  if (perm === 'denied') { btn.style.display = 'none'; return; }
+
+  btn.addEventListener('click', async () => {
+    const result = await Notification.requestPermission();
+    if (result !== 'granted') return;
+    try {
+      const reg = await navigator.serviceWorker.ready;
+      const sub = await reg.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC)
+      });
+      await fetch(WORKER_URL + '/subscribe', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(sub)
+      });
+      btn.classList.add('active');
+      btn.title = 'Notifications activées ✓';
+      showToast('Notifications activées 🔔');
+    } catch(e) { console.error('Push subscribe error', e); }
+  });
+}
+
+function urlBase64ToUint8Array(base64String) {
+  const padding = '='.repeat((4 - base64String.length % 4) % 4);
+  const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+  const raw = atob(base64);
+  return Uint8Array.from([...raw].map(c => c.charCodeAt(0)));
+}
+
+function showToast(msg) {
+  const t = document.getElementById('toast-global');
+  if (!t) return;
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 3000);
+}
+
+document.addEventListener('DOMContentLoaded', initNotifications);
