@@ -88,23 +88,37 @@ async function renderJournal() {
 
 // ====== GALERIE ======
 async function renderGallery() {
-  const items = await loadJSON('content/gallery.json');
+  // Combine gallery.json + toutes les images des posts
+  const [galleryItems, posts] = await Promise.all([
+    loadJSON('content/gallery.json'),
+    loadJSON('content/posts.json')
+  ]);
+
+  const fromPosts = posts
+    .filter(p => p.image && !isVideo(p.image))
+    .map(p => ({ image: p.image, caption: p.title, date: p.date }));
+
+  const fromVideos = posts
+    .filter(p => p.image && isVideo(p.image))
+    .map(p => ({ image: p.image, caption: p.title, date: p.date }));
+
+  // Toutes les photos : posts en premier (chronologique desc), puis gallery.json, puis vidéos
+  const all = [...fromPosts, ...galleryItems, ...fromVideos]
+    .sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+
   const grid = document.getElementById('gallery-grid');
-  if (!items.length) {
+  if (!all.length) {
     grid.innerHTML = '<p style="text-align:center;color:var(--ink-soft);font-style:italic;grid-column:1/-1;">Pas encore de photos.</p>';
     return;
   }
 
-  grid.innerHTML = items.map(it => {
-    let content;
-    if (it.image) {
-      content = mediaHTML(it.image, it.caption);
-    } else {
-      content = `<div class="gallery-placeholder">${escapeHtml(it.emoji || '·')}</div>`;
-    }
+  grid.innerHTML = all.map(it => {
+    const content = mediaHTML(it.image, it.caption);
+    const isVid = isVideo(it.image);
     return `
-      <div class="gallery-item" data-caption="${escapeHtml(it.caption || '')}" data-media="${escapeHtml(it.image || '')}">
+      <div class="gallery-item${isVid ? ' gallery-item--video' : ''}" data-caption="${escapeHtml(it.caption || '')}" data-media="${escapeHtml(it.image || '')}">
         ${content}
+        ${isVid ? '<span class="gallery-play">▶</span>' : ''}
       </div>
     `;
   }).join('');
