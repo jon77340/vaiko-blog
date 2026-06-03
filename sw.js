@@ -1,8 +1,8 @@
-const VERSION = 'vaiko-v3';
+const VERSION = 'vaiko-v4';
 const ASSETS = ['/', '/index.html', '/styles.css', '/app.js'];
 
 self.addEventListener('install', e => {
-  e.waitUntil(caches.open(VERSION).then(cache => cache.addAll(ASSETS)));
+  e.waitUntil(caches.open(VERSION).then(c => c.addAll(ASSETS)));
   self.skipWaiting();
 });
 
@@ -17,13 +17,26 @@ self.addEventListener('activate', e => {
 
 self.addEventListener('fetch', e => {
   const url = new URL(e.request.url);
-  // Ne cache pas les médias, JSON dynamiques et l'admin
-  if (url.pathname.startsWith('/media/') ||
-      url.pathname.startsWith('/content/') ||
-      url.pathname.startsWith('/admin')) {
-    return;
-  }
-  e.respondWith(
-    caches.match(e.request).then(cached => cached || fetch(e.request))
-  );
+  if (url.pathname.startsWith('/media/') || url.pathname.startsWith('/content/')) return;
+  e.respondWith(caches.match(e.request).then(cached => cached || fetch(e.request)));
+});
+
+// Push notification
+self.addEventListener('push', e => {
+  const data = e.data?.json() ?? {};
+  e.waitUntil(self.registration.showNotification(data.title || 'Vaïko 🐾', {
+    body: data.body || 'Nouvelle photo !',
+    icon: '/apple-touch-icon.png',
+    badge: '/favicon.png',
+    tag: 'vaiko-post',
+    renotify: true
+  }));
+});
+
+self.addEventListener('notificationclick', e => {
+  e.notification.close();
+  e.waitUntil(clients.matchAll({ type: 'window' }).then(all => {
+    for (const c of all) { if (c.url.includes('vaiko') && 'focus' in c) return c.focus(); }
+    return clients.openWindow('/');
+  }));
 });
