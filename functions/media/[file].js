@@ -1,14 +1,8 @@
-// Cloudflare Pages Function
-// Sert les médias (photos/vidéos) depuis R2
-// Route : /media/12345.jpg, /media/67890.mp4, etc.
-
 export async function onRequestGet(context) {
   const { params, env, request } = context;
   const file = params.file;
 
-  if (!env.MEDIA) {
-    return new Response('R2 binding manquant', { status: 500 });
-  }
+  if (!env.MEDIA) return new Response('R2 binding manquant', { status: 500 });
 
   const obj = await env.MEDIA.get(`media/${file}`);
   if (!obj) return new Response('Not found', { status: 404 });
@@ -16,11 +10,21 @@ export async function onRequestGet(context) {
   const headers = new Headers();
   obj.writeHttpMetadata(headers);
 
-  // Cache long côté CDN (les médias ne bougent jamais une fois publiés)
+  // Fallback content-type basé sur l'extension
+  const ct = headers.get('content-type') || '';
+  if (!ct || ct === 'application/octet-stream') {
+    const ext = file.split('.').pop().toLowerCase();
+    const mime = {
+      jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png',
+      gif: 'image/gif', webp: 'image/webp', heic: 'image/heic',
+      mp4: 'video/mp4', mov: 'video/quicktime', webm: 'video/webm'
+    }[ext] || 'application/octet-stream';
+    headers.set('content-type', mime);
+  }
+
   headers.set('cache-control', 'public, max-age=31536000, immutable');
   headers.set('etag', obj.httpEtag);
 
-  // Support du range (lecture vidéo en streaming progressif)
   const range = request.headers.get('range');
   if (range && obj.size) {
     const match = range.match(/bytes=(\d+)-(\d+)?/);
