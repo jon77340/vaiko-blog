@@ -94,7 +94,7 @@ async function renderJournal() {
 
     return `
       <article class="post">
-        ${mediaContent ? `<div class="post-image">${mediaContent}</div>` : ''}
+        ${mediaContent && !isVideo(p.image) ? `<div class="post-image post-image--clickable" data-media="${escapeHtml(p.image)}" data-caption="${escapeHtml(p.title)}" onclick="openPostImage(this)">${mediaContent}</div>` : (mediaContent ? `<div class="post-image">${mediaContent}</div>` : '')}
         <div class="post-body">
           <time class="post-date">${escapeHtml(dateLabel)}</time>
           <h3>${escapeHtml(p.title || '')}</h3>
@@ -350,6 +350,17 @@ async function submitComment(e, postId) {
     await loadComments(postId);
   } catch(e) {}
   btn.disabled = false;
+}
+
+// ====== OUVRE PHOTO DU POST EN LIGHTBOX ======
+function openPostImage(el) {
+  const lightbox = document.getElementById('lightbox');
+  const lightboxContent = lightbox.querySelector('.lightbox-content');
+  const lightboxCaption = lightbox.querySelector('.lightbox-caption');
+  lightboxContent.innerHTML = mediaHTML(el.dataset.media, el.dataset.caption, { full: true });
+  lightboxCaption.textContent = el.dataset.caption || '';
+  lightbox.classList.add('active');
+  document.body.style.overflow = 'hidden';
 }
 
 // ====== NAV FLUIDE ======
