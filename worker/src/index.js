@@ -214,7 +214,7 @@ async function processMessage(msg, state, env) {
     const coords = msg.location ? { lat: msg.location.latitude, lng: msg.location.longitude } : (extractCoords(caption) || null);
     state.posts.push({
       date, dateLabel: '',
-      title: title || 'Sans titre',
+      title: title || '',
       body, image: mediaPath || '',
       tag: extractTag(caption),
       coords: coords,
@@ -238,7 +238,7 @@ async function processAlbum(msgs, state, env) {
     if (path) mediaPaths.push(path);
   }
   if (!mediaPaths.length) return;
-  state.posts.push({ date, dateLabel: '', title: title || 'Sans titre', body, image: mediaPaths[0], tag: extractTag(caption), coords: coords || null, message_id: first.message_id });
+  state.posts.push({ date, dateLabel: '', title: title || '', body, image: mediaPaths[0], tag: extractTag(caption), coords: coords || null, message_id: first.message_id });
   for (let i = 1; i < mediaPaths.length; i++) {
     state.gallery.unshift({ image: mediaPaths[i], caption: title || '', date, message_id: msgs[i].message_id });
   }
