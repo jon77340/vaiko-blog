@@ -38,6 +38,11 @@ export default {
       return handleAdmin(request, env);
     }
 
+    // Souscriptions push
+    if (url.pathname === '/subscribe') {
+      return handleSubscribe(request, env);
+    }
+
     // Commentaires & réactions
     if (url.pathname === '/comments' || url.pathname === '/react') {
       return handleComments(request, env);
@@ -163,6 +168,13 @@ async function syncTelegram(env) {
   }
 
   await saveState(env, state);
+  // Envoie push si nouveaux posts
+  if (processed > 0) {
+    const latest = state.posts[state.posts.length - 1];
+    const pushTitle = `Vaïko 🐾 — ${latest?.title || 'Nouvelle photo'}`;
+    const pushBody = latest?.body?.slice(0, 80) || 'Une nouvelle photo vient d'être publiée !';
+    await sendPushToAll(env, pushTitle, pushBody).catch(() => {});
+  }
   return { status: 'ok', processed, total_posts: state.posts.length, total_gallery: state.gallery.length, last_id: state.last_update_id };
 }
 
@@ -303,6 +315,96 @@ async function handleComments(request, env) {
   }
 
   return new Response('Method not allowed', { status: 405, headers: CORS });
+}
+
+
+// ====== PUSH NOTIFICATIONS ======
+async function handleSubscribe(request, env) {
+  if (request.method !== 'POST') return new Response('Method not allowed', { status: 405, headers: CORS });
+  const sub = await request.json().catch(() => null);
+  if (!sub?.endpoint) return new Response('Invalid subscription', { status: 400, headers: CORS });
+  const key = 'subscriptions/' + btoa(sub.endpoint).slice(0, 40).replace(/[^a-z0-9]/gi,'');
+  await env.MEDIA.put(key, JSON.stringify(sub));
+  return new Response(JSON.stringify({ ok: true }), { headers: { 'content-type': 'application/json', ...CORS } });
+}
+
+async function sendPushToAll(env, title, body) {
+  if (!env.VAPID_PRIVATE || !env.VAPID_PUBLIC) return;
+  const list = await env.MEDIA.list({ prefix: 'subscriptions/' });
+  for (const item of list.objects) {
+    const obj = await env.MEDIA.get(item.key);
+    if (!obj) continue;
+    const sub = JSON.parse(await obj.text());
+    try {
+      await sendPush(sub, { title, body }, env);
+    } catch(e) {
+      // Subscription expirée → on la supprime
+      if (e.status === 410 || e.status === 404) await env.MEDIA.delete(item.key);
+    }
+  }
+}
+
+async function sendPush(sub, payload, env) {
+  const audience = new URL(sub.endpoint).origin;
+  const vapidHeaders = await buildVapidHeaders(audience, env);
+  const encrypted = await encryptPayload(sub, JSON.stringify(payload));
+  const res = await fetch(sub.endpoint, {
+    method: 'POST',
+    headers: {
+      'Authorization': vapidHeaders.authorization,
+      'Crypto-Key': `p256dh=${sub.keys.p256dh};dh=${encrypted.dh}`,
+      'Encryption': `salt=${encrypted.salt}`,
+      'Content-Encoding': 'aesgcm',
+      'Content-Type': 'application/octet-stream',
+      'TTL': '86400',
+      ...vapidHeaders.extra
+    },
+    body: encrypted.ciphertext
+  });
+  if (!res.ok) { const e = new Error(await res.text()); e.status = res.status; throw e; }
+}
+
+function b64url(buf) {
+  return btoa(String.fromCharCode(...new Uint8Array(buf))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=/g,'');
+}
+function b64urlDecode(s) {
+  return Uint8Array.from(atob(s.replace(/-/g,'+').replace(/_/g,'/')), c => c.charCodeAt(0));
+}
+
+async function buildVapidHeaders(audience, env) {
+  const header = b64url(new TextEncoder().encode(JSON.stringify({ typ: 'JWT', alg: 'ES256' })));
+  const payload = b64url(new TextEncoder().encode(JSON.stringify({
+    aud: audience, exp: Math.floor(Date.now()/1000) + 43200,
+    sub: 'mailto:jonathan@bianchi.biz'
+  })));
+  const unsigned = `${header}.${payload}`;
+  const pkcs8 = b64urlDecode(env.VAPID_PRIVATE);
+  const key = await crypto.subtle.importKey('pkcs8', pkcs8, { name: 'ECDSA', namedCurve: 'P-256' }, false, ['sign']);
+  const sig = await crypto.subtle.sign({ name: 'ECDSA', hash: 'SHA-256' }, key, new TextEncoder().encode(unsigned));
+  const jwt = `${unsigned}.${b64url(sig)}`;
+  return { authorization: `vapid t=${jwt},k=${env.VAPID_PUBLIC}`, extra: {} };
+}
+
+async function encryptPayload(sub, plaintext) {
+  const salt = crypto.getRandomValues(new Uint8Array(16));
+  const serverKeys = await crypto.subtle.generateKey({ name: 'ECDH', namedCurve: 'P-256' }, true, ['deriveBits']);
+  const clientKey = await crypto.subtle.importKey('raw', b64urlDecode(sub.keys.p256dh), { name: 'ECDH', namedCurve: 'P-256' }, false, []);
+  const sharedBits = await crypto.subtle.deriveBits({ name: 'ECDH', public: clientKey }, serverKeys.privateKey, 256);
+  const authInfo = new TextEncoder().encode('Content-Encoding: auth\0');
+  const authSecret = b64urlDecode(sub.keys.auth);
+  const prk = await crypto.subtle.importKey('raw', sharedBits, { name: 'HKDF' }, false, ['deriveBits']);
+  const ikm = await crypto.subtle.deriveBits({ name: 'HKDF', hash: 'SHA-256', salt: authSecret, info: authInfo }, prk, 256);
+  const serverPub = await crypto.subtle.exportKey('raw', serverKeys.publicKey);
+  const context = new Uint8Array([...new TextEncoder().encode('P-256\0'), 0, 65, ...b64urlDecode(sub.keys.p256dh), 0, 65, ...new Uint8Array(serverPub)]);
+  const cekInfo = new Uint8Array([...new TextEncoder().encode('Content-Encoding: aesgcm\0'), ...context]);
+  const nonceInfo = new Uint8Array([...new TextEncoder().encode('Content-Encoding: nonce\0'), ...context]);
+  const ikmKey = await crypto.subtle.importKey('raw', ikm, { name: 'HKDF' }, false, ['deriveBits']);
+  const cekBits = await crypto.subtle.deriveBits({ name: 'HKDF', hash: 'SHA-256', salt, info: cekInfo }, ikmKey, 128);
+  const nonceBits = await crypto.subtle.deriveBits({ name: 'HKDF', hash: 'SHA-256', salt, info: nonceInfo }, ikmKey, 96);
+  const cek = await crypto.subtle.importKey('raw', cekBits, 'AES-GCM', false, ['encrypt']);
+  const padded = new Uint8Array([0, 0, ...new TextEncoder().encode(plaintext)]);
+  const ciphertext = await crypto.subtle.encrypt({ name: 'AES-GCM', iv: nonceBits }, cek, padded);
+  return { salt: b64url(salt), dh: b64url(serverPub), ciphertext };
 }
 
 // ====== UTILS ======
