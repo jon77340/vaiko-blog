@@ -4,7 +4,7 @@
    même avec un réseau capricieux (Norvège).
    =========================================== */
 
-const VERSION = 'vaiko-v1';
+const VERSION = 'vaiko-v2';
 const ASSETS = [
   '/',
   '/index.html',
