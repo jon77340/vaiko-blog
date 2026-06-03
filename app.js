@@ -50,14 +50,37 @@ function mediaHTML(url, alt = '', { full = false } = {}) {
 
 // ====== JOURNAL ======
 async function renderJournal() {
-  const posts = await loadJSON('content/posts.json');
   const grid = document.getElementById('journal-grid');
+
+  // Skeleton pendant le chargement
+  grid.innerHTML = Array(2).fill(`
+    <article class="post skeleton-post">
+      <div class="skeleton skeleton-img"></div>
+      <div class="skeleton skeleton-date"></div>
+      <div class="skeleton skeleton-title"></div>
+      <div class="skeleton skeleton-line"></div>
+      <div class="skeleton skeleton-line short"></div>
+    </article>`).join('');
+
+  const posts = await loadJSON('content/posts.json');
   if (!posts.length) {
     grid.innerHTML = '<p style="text-align:center;color:var(--ink-soft);font-style:italic;">Le carnet est encore vierge. Revenez bientôt.</p>';
     return;
   }
 
   posts.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+
+  // Dernière mise à jour
+  const lastDate = posts[0]?.date;
+  if (lastDate) {
+    const el = document.getElementById('last-updated');
+    if (el) {
+      const d = new Date(lastDate);
+      const diff = Math.floor((Date.now() - d.getTime()) / 86400000);
+      el.textContent = diff === 0 ? 'mis à jour aujourd'hui' : diff === 1 ? 'mis à jour hier' : `mis à jour il y a ${diff} jours`;
+      el.style.display = 'inline';
+    }
+  }
 
   grid.innerHTML = posts.map(p => {
     const dateLabel = p.dateLabel || formatDateLong(p.date) || '';
@@ -214,25 +237,41 @@ function attachLightbox() {
   const lightboxContent = lightbox.querySelector('.lightbox-content');
   const lightboxCaption = lightbox.querySelector('.lightbox-caption');
   const lightboxClose = lightbox.querySelector('.lightbox-close');
+  let items = [], currentIdx = 0, touchStartX = 0;
 
-  document.querySelectorAll('.gallery-item').forEach(item => {
-    item.addEventListener('click', () => {
-      const mediaUrl = item.dataset.media;
-      lightboxContent.innerHTML = '';
-
-      if (mediaUrl) {
-        lightboxContent.innerHTML = mediaHTML(mediaUrl, item.dataset.caption || '', { full: true });
-      } else {
-        const placeholder = item.querySelector('.gallery-placeholder');
-        if (placeholder) {
-          const clone = placeholder.cloneNode(true);
-          clone.style.fontSize = '6rem';
-          lightboxContent.appendChild(clone);
-        }
+  function openAt(idx) {
+    currentIdx = idx;
+    const item = items[idx];
+    const mediaUrl = item.dataset.media;
+    lightboxContent.innerHTML = '';
+    if (mediaUrl) {
+      lightboxContent.innerHTML = mediaHTML(mediaUrl, item.dataset.caption || '', { full: true });
+    } else {
+      const placeholder = item.querySelector('.gallery-placeholder');
+      if (placeholder) {
+        const clone = placeholder.cloneNode(true);
+        clone.style.fontSize = '6rem';
+        lightboxContent.appendChild(clone);
       }
-      lightboxCaption.textContent = item.dataset.caption || '';
-      lightbox.classList.add('active');
-      document.body.style.overflow = 'hidden';
+    }
+    lightboxCaption.textContent = item.dataset.caption || '';
+    lightbox.classList.add('active');
+    document.body.style.overflow = 'hidden';
+  }
+
+  // Swipe touch
+  lightbox.addEventListener('touchstart', e => { touchStartX = e.touches[0].clientX; }, { passive: true });
+  lightbox.addEventListener('touchend', e => {
+    const dx = e.changedTouches[0].clientX - touchStartX;
+    if (Math.abs(dx) < 50) return;
+    const next = dx < 0 ? currentIdx + 1 : currentIdx - 1;
+    if (next >= 0 && next < items.length) openAt(next);
+  }, { passive: true });
+
+  document.querySelectorAll('.gallery-item').forEach((item, idx) => {
+    item.addEventListener('click', () => {
+      items = Array.from(document.querySelectorAll('.gallery-item'));
+      openAt(items.indexOf(item));
     });
   });
 
@@ -324,6 +363,20 @@ document.querySelectorAll('.nav-links a').forEach(link => {
 
 
 // ====== INIT ======
+// Auto-refresh toutes les 5 min
+let lastPostCount = 0;
+async function checkForUpdates() {
+  try {
+    const posts = await loadJSON('content/posts.json');
+    if (lastPostCount > 0 && posts.length > lastPostCount) {
+      const banner = document.getElementById('new-posts-banner');
+      if (banner) { banner.style.display = 'flex'; }
+    }
+    lastPostCount = posts.length;
+  } catch(e) {}
+}
+setInterval(checkForUpdates, 5 * 60 * 1000);
+
 renderJournal().then(() => {
   document.querySelectorAll('.post-interactions').forEach(el => {
     loadComments(Number(el.dataset.id));
