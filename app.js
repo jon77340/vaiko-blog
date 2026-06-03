@@ -77,7 +77,7 @@ async function renderJournal() {
     if (el) {
       const d = new Date(lastDate);
       const diff = Math.floor((Date.now() - d.getTime()) / 86400000);
-      el.textContent = diff === 0 ? 'mis à jour aujourd'hui' : diff === 1 ? 'mis à jour hier' : `mis à jour il y a ${diff} jours`;
+      el.textContent = diff === 0 ? 'mis à jour aujourd\'hui' : diff === 1 ? 'mis à jour hier' : `mis à jour il y a ${diff} jours`;
       el.style.display = 'inline';
     }
   }
