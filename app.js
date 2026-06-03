@@ -89,9 +89,9 @@ async function renderJournal() {
           <div class="comments-section">
             <div class="comments-list" id="comments-${p.message_id}"></div>
             <form class="comment-form" onsubmit="submitComment(event,${p.message_id})">
-              <input type="text" placeholder="Votre prénom" class="comment-name" maxlength="50">
-              <textarea placeholder="Laissez un message à Vaïko 🐾" class="comment-text" maxlength="500" rows="2"></textarea>
-              <button type="submit" class="comment-submit">Envoyer</button>
+              <input type="text" placeholder="Votre prénom" class="comment-name" maxlength="50" autocomplete="given-name" autocapitalize="words">
+              <textarea placeholder="Laissez un message à Vaïko 🐾" class="comment-text" maxlength="500" rows="3" autocapitalize="sentences"></textarea>
+              <button type="submit" class="comment-submit">Envoyer ✉️</button>
             </form>
           </div>
         </div>
