@@ -115,7 +115,15 @@ async function renderGallery() {
 
 // ====== CARTE ======
 async function renderMap() {
-  const walks = await loadJSON('content/walks.json');
+  // Combine walks.json (manuel) + coords des posts Telegram
+  const [walksManual, posts] = await Promise.all([
+    loadJSON('content/walks.json'),
+    loadJSON('content/posts.json')
+  ]);
+  const postsWithCoords = posts
+    .filter(p => p.coords?.lat && p.coords?.lng)
+    .map(p => ({ lat: p.coords.lat, lng: p.coords.lng, title: p.title, date: p.date }));
+  const walks = [...walksManual, ...postsWithCoords];
   const mapDiv = document.getElementById('map');
 
   if (typeof L === 'undefined') {
