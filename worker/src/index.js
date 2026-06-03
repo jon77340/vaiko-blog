@@ -311,6 +311,16 @@ async function handleComments(request, env) {
     }
 
     await env.MEDIA.put(key, JSON.stringify(data));
+
+    // Notifie l'admin sur Telegram
+    if (url.pathname === '/react') {
+      await notifyAdmin(env, `🐾 <b>Nouvelle réaction sur vaiko.bianchi.biz</b>\n\nPost #${body.post_id} · ${body.emoji}`);
+    } else {
+      const notifName = (body.name || 'Anonyme').slice(0, 50).trim();
+      const notifText = (body.text || '').slice(0, 200).trim();
+      await notifyAdmin(env, `💬 <b>Nouveau commentaire sur vaiko.bianchi.biz</b>\n\n<b>${notifName}</b> :\n${notifText}`);
+    }
+
     return new Response(JSON.stringify(data), { headers: CORS_H });
   }
 
@@ -405,6 +415,17 @@ async function encryptPayload(sub, plaintext) {
   const padded = new Uint8Array([0, 0, ...new TextEncoder().encode(plaintext)]);
   const ciphertext = await crypto.subtle.encrypt({ name: 'AES-GCM', iv: nonceBits }, cek, padded);
   return { salt: b64url(salt), dh: b64url(serverPub), ciphertext };
+}
+
+
+// ====== NOTIFICATION TELEGRAM ADMIN ======
+async function notifyAdmin(env, message) {
+  if (!env.ADMIN_CHAT_ID || !env.BOT_TOKEN) return;
+  await fetch(`${TG_API}/bot${env.BOT_TOKEN}/sendMessage`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ chat_id: env.ADMIN_CHAT_ID, text: message, parse_mode: 'HTML' })
+  }).catch(() => {});
 }
 
 // ====== UTILS ======
