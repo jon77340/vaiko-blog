@@ -38,6 +38,11 @@ export default {
       return handleAdmin(request, env);
     }
 
+    // Commentaires & réactions
+    if (url.pathname === '/comments' || url.pathname === '/react') {
+      return handleComments(request, env);
+    }
+
     if (url.pathname === '/health') {
       return new Response('Vaïko worker OK', { headers: CORS });
     }
@@ -258,6 +263,46 @@ async function downloadMedia(msg, env) {
   const filename = `media/${msg.message_id}.${ext}`;
   await env.MEDIA.put(filename, buf, { httpMetadata: { contentType: dl.headers.get('content-type') || `image/${ext}` } });
   return '/' + filename;
+}
+
+
+// ====== COMMENTAIRES & RÉACTIONS ======
+async function handleComments(request, env) {
+  const url = new URL(request.url);
+  const CORS_H = { ...CORS, 'content-type': 'application/json' };
+
+  if (request.method === 'GET') {
+    const postId = url.searchParams.get('post_id');
+    if (!postId) return new Response('[]', { headers: CORS_H });
+    const obj = await env.MEDIA.get(`comments/${postId}.json`);
+    const data = obj ? await obj.text() : '{"comments":[],"reactions":{}}';
+    return new Response(data, { headers: CORS_H });
+  }
+
+  if (request.method === 'POST') {
+    const body = await request.json().catch(() => null);
+    if (!body?.post_id) return new Response('{"error":"missing post_id"}', { status: 400, headers: CORS_H });
+
+    const key = `comments/${body.post_id}.json`;
+    const obj = await env.MEDIA.get(key);
+    const data = obj ? JSON.parse(await obj.text()) : { comments: [], reactions: {} };
+
+    if (url.pathname === '/react') {
+      const emoji = body.emoji;
+      if (!emoji) return new Response('{"error":"missing emoji"}', { status: 400, headers: CORS_H });
+      data.reactions[emoji] = (data.reactions[emoji] || 0) + 1;
+    } else {
+      const name = (body.name || 'Anonyme').slice(0, 50).trim();
+      const text = (body.text || '').slice(0, 500).trim();
+      if (!text) return new Response('{"error":"empty text"}', { status: 400, headers: CORS_H });
+      data.comments.push({ name, text, date: new Date().toISOString().slice(0, 10), ts: Date.now() });
+    }
+
+    await env.MEDIA.put(key, JSON.stringify(data));
+    return new Response(JSON.stringify(data), { headers: CORS_H });
+  }
+
+  return new Response('Method not allowed', { status: 405, headers: CORS });
 }
 
 // ====== UTILS ======
