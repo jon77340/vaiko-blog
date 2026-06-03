@@ -80,6 +80,21 @@ async function renderJournal() {
           ).join('')}
           ${p.tag ? `<span class="post-tag">— ${escapeHtml(p.tag)}</span>` : ''}
         </div>
+        <div class="post-interactions" data-id="${p.message_id}">
+          <div class="reactions">
+            ${['🐾','❤️','😍','😂','🐶','👏'].map(e =>
+              `<button class="reaction-btn" data-emoji="${e}" onclick="addReaction(${p.message_id},'${e}',this)">${e} <span class="reaction-count"></span></button>`
+            ).join('')}
+          </div>
+          <div class="comments-section">
+            <div class="comments-list" id="comments-${p.message_id}"></div>
+            <form class="comment-form" onsubmit="submitComment(event,${p.message_id})">
+              <input type="text" placeholder="Votre prénom" class="comment-name" maxlength="50">
+              <textarea placeholder="Laissez un message à Vaïko 🐾" class="comment-text" maxlength="500" rows="2"></textarea>
+              <button type="submit" class="comment-submit">Envoyer</button>
+            </form>
+          </div>
+        </div>
       </article>
     `;
   }).join('');
@@ -233,6 +248,71 @@ function attachLightbox() {
 }
 
 
+
+const WORKER_URL = 'https://vaiko-sync.jonathan-34c.workers.dev';
+
+async function loadComments(postId) {
+  try {
+    const r = await fetch(`${WORKER_URL}/comments?post_id=${postId}`);
+    const data = await r.json();
+    // Réactions
+    const section = document.querySelector(`.post-interactions[data-id="${postId}"]`);
+    if (!section) return;
+    Object.entries(data.reactions || {}).forEach(([emoji, count]) => {
+      const btn = section.querySelector(`.reaction-btn[data-emoji="${emoji}"]`);
+      if (btn && count > 0) {
+        btn.querySelector('.reaction-count').textContent = count;
+        btn.classList.add('has-reactions');
+      }
+    });
+    // Commentaires
+    const list = document.getElementById(`comments-${postId}`);
+    if (!list) return;
+    if (!data.comments?.length) { list.innerHTML = ''; return; }
+    list.innerHTML = data.comments.map(c => `
+      <div class="comment">
+        <span class="comment-author">${escapeHtml(c.name)}</span>
+        <span class="comment-date">${c.date}</span>
+        <p class="comment-text">${escapeHtml(c.text)}</p>
+      </div>`).join('');
+  } catch(e) {}
+}
+
+async function addReaction(postId, emoji, btn) {
+  btn.disabled = true;
+  try {
+    const r = await fetch(`${WORKER_URL}/react`, {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ post_id: postId, emoji })
+    });
+    const data = await r.json();
+    const count = data.reactions?.[emoji] || 0;
+    btn.querySelector('.reaction-count').textContent = count > 0 ? count : '';
+    btn.classList.add('has-reactions');
+    btn.classList.add('reacted');
+    setTimeout(() => btn.disabled = false, 2000);
+  } catch(e) { btn.disabled = false; }
+}
+
+async function submitComment(e, postId) {
+  e.preventDefault();
+  const form = e.target;
+  const name = form.querySelector('.comment-name').value.trim() || 'Anonyme';
+  const text = form.querySelector('.comment-text').value.trim();
+  if (!text) return;
+  const btn = form.querySelector('.comment-submit');
+  btn.disabled = true;
+  try {
+    await fetch(`${WORKER_URL}/comments`, {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ post_id: postId, name, text })
+    });
+    form.querySelector('.comment-text').value = '';
+    await loadComments(postId);
+  } catch(e) {}
+  btn.disabled = false;
+}
+
 // ====== NAV FLUIDE ======
 document.querySelectorAll('.nav-links a').forEach(link => {
   link.addEventListener('click', e => {
@@ -244,6 +324,10 @@ document.querySelectorAll('.nav-links a').forEach(link => {
 
 
 // ====== INIT ======
-renderJournal();
+renderJournal().then(() => {
+  document.querySelectorAll('.post-interactions').forEach(el => {
+    loadComments(Number(el.dataset.id));
+  });
+});
 renderGallery();
 renderMap();
