@@ -207,6 +207,10 @@ a:hover { text-decoration-color: var(--ink); }
   }
 }
 
+.post-image--clickable {
+  cursor: zoom-in;
+}
+
 .post-image img,
 .post-image video {
   width: 100%;
